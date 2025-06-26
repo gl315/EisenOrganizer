@@ -121,7 +121,9 @@
             measurementId: "G-3EYGEDR11B"
         };
 
-        let db, auth, userId = null, tasksCollectionRef = null, unsubscribe = null;
+        let db, auth;
+        let currentUserId = null;
+        let unsubscribeFromTasks = null; // Função para parar de ouvir as atualizações
         
         const ui = {
             loginPage: document.getElementById('login-page'),
@@ -134,65 +136,47 @@
             quadrants: document.querySelectorAll('.quadrant'),
             uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder')
         };
-
-        async function initializeFirebase() {
+        
+        // --- 1. Funções de Autenticação e Inicialização ---
+        
+        async function initializeAppAndAuth() {
             try {
+                console.log("Inicializando Firebase...");
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                // Define a persistência para a sessão atual do navegador.
-                // Isto garante um comportamento consistente entre janelas normais e anónimas.
                 await setPersistence(auth, browserSessionPersistence);
-                onAuthStateChanged(auth, handleAuthState);
+                onAuthStateChanged(auth, handleAuthStateChange);
             } catch (error) {
-                console.error("Falha na inicialização do Firebase:", error);
-                ui.loginStatus.textContent = 'Falha na inicialização do Firebase.';
+                console.error("Falha Crítica na Inicialização do Firebase:", error);
+                ui.loginStatus.textContent = 'Não foi possível conectar aos nossos serviços.';
             }
         }
-        
-        function handleAuthState(user) {
+
+        function handleAuthStateChange(user) {
             if (user) {
-                userId = user.uid;
-                ui.loginPage.style.display = 'none';
-                ui.appPage.style.display = 'block';
-
-                ui.authStatus.innerHTML = `
-                    <span class="font-semibold text-gray-700 dark:text-gray-300">Bem-vindo, ${user.displayName || 'Utilizador'}!</span>
-                    <button id="sign-out-btn" class="bg-red-500 text-white font-bold py-1 px-3 rounded-md text-xs hover:bg-red-600">Sair</button>
-                `;
-                document.getElementById('sign-out-btn').addEventListener('click', signOutUser);
-
-                tasksCollectionRef = collection(db, 'users', userId, 'tasks');
-                
-                if (unsubscribe) {
-                    unsubscribe();
+                // UTILIZADOR LOGADO
+                console.log(`Utilizador logado: ${user.uid}`);
+                if (currentUserId !== user.uid) {
+                    currentUserId = user.uid;
+                    switchToAppView(user);
+                    setupFirestoreListener(user.uid);
                 }
-                
-                // Re-adicionada a ordenação. Se isto causar problemas, precisaremos de criar um índice no Firebase.
-                const q = query(tasksCollectionRef, orderBy("order")); 
-
-                unsubscribe = onSnapshot(q, renderTasks, (error) => {
-                    console.error("ERRO no listener do Firestore:", error);
-                    alert("Erro de permissão ao ler os dados. Verifique as suas regras de segurança do Firestore ou se precisa de criar um índice.");
-                });
-                
-                initializeSortable();
             } else {
-                if(unsubscribe) {
-                    unsubscribe();
-                }
-                userId = null;
-                ui.loginPage.style.display = 'flex';
-                ui.appPage.style.display = 'none';
-                ui.loginStatus.textContent = 'Por favor, inicie sessão para continuar.';
+                // UTILIZADOR DESLOGADO
+                console.log("Nenhum utilizador logado.");
+                currentUserId = null;
+                cleanupFirestoreListener();
+                switchToLoginView();
             }
         }
-        
+
         async function signInWithGoogle() {
             const provider = new GoogleAuthProvider();
             try {
                 ui.loginStatus.textContent = 'A abrir o pop-up de login...';
                 await signInWithPopup(auth, provider);
+                // onAuthStateChanged irá tratar da mudança de ecrã
             } catch (error) {
                 console.error("Erro no login com Google: ", error);
                 ui.loginStatus.textContent = `Erro no login: ${error.message}`;
@@ -200,19 +184,72 @@
         }
 
         async function signOutUser() {
+            console.log("A terminar a sessão do utilizador...");
             await signOut(auth);
+            // onAuthStateChanged irá tratar da mudança de ecrã e limpeza
         }
         
-        function renderTasks(snapshot) {
+        // --- 2. Funções de Gestão do Banco de Dados (Firestore) ---
+
+        function setupFirestoreListener(userId) {
+            console.log(`Configurando o listener de tarefas para o utilizador: ${userId}`);
+            
+            // Garante que qualquer listener antigo seja removido antes de criar um novo.
+            cleanupFirestoreListener();
+
+            const tasksCollectionRef = collection(db, 'users', userId, 'tasks');
+            
+            // IMPORTANTE: Esta consulta requer um índice no Firestore.
+            // Se a sincronização não funcionar, verifique a consola do navegador por um erro
+            // que contenha um link para criar o índice automaticamente.
+            const q = query(tasksCollectionRef, orderBy("order", "desc")); 
+
+            unsubscribeFromTasks = onSnapshot(q, (snapshot) => {
+                console.log(`Dados recebidos: ${snapshot.size} tarefas.`);
+                const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderTasks(tasks);
+            }, (error) => {
+                console.error("ERRO CRÍTICO no listener do Firestore:", error);
+                alert("Não foi possível carregar as tarefas. Verifique a sua conexão ou se as permissões do banco de dados estão corretas.");
+            });
+        }
+
+        function cleanupFirestoreListener() {
+            if (unsubscribeFromTasks) {
+                console.log("Removendo o listener de tarefas anterior.");
+                unsubscribeFromTasks();
+                unsubscribeFromTasks = null;
+            }
+        }
+        
+        // --- 3. Funções de Manipulação da Interface (UI) ---
+
+        function switchToAppView(user) {
+            ui.loginPage.style.display = 'none';
+            ui.appPage.style.display = 'block';
+            ui.authStatus.innerHTML = `
+                <span class="font-semibold text-gray-700 dark:text-gray-300">Bem-vindo, ${user.displayName || 'Utilizador'}!</span>
+                <button id="sign-out-btn" class="bg-red-500 text-white font-bold py-1 px-3 rounded-md text-xs hover:bg-red-600">Sair</button>
+            `;
+            document.getElementById('sign-out-btn').addEventListener('click', signOutUser);
+            initializeSortable();
+        }
+
+        function switchToLoginView() {
+            ui.appPage.style.display = 'none';
+            ui.loginPage.style.display = 'flex';
+            ui.loginStatus.textContent = 'Por favor, inicie sessão para continuar.';
+        }
+        
+        function renderTasks(tasks) {
             const tasksByQuadrant = { do: [], schedule: [], delegate: [], delete: [], uncategorized: [] };
-            snapshot.docs.forEach(doc => {
-                const task = { id: doc.id, ...doc.data() };
+            
+            for (const task of tasks) {
                 if (tasksByQuadrant[task.quadrant]) {
                     tasksByQuadrant[task.quadrant].push(task);
                 }
-            });
-
-            // A ordenação já é feita pela consulta do Firestore (orderBy)
+            }
+            
             ui.quadrants.forEach(q => q.innerHTML = '');
             Object.keys(tasksByQuadrant).forEach(quadrantId => {
                 const quadrantEl = document.getElementById(quadrantId);
@@ -221,8 +258,8 @@
                 }
             });
 
-            if (tasksByQuadrant.uncategorized.length === 0 && document.getElementById('uncategorized')) {
-                document.getElementById('uncategorized').appendChild(ui.uncategorizedPlaceholder);
+            if (tasksByQuadrant.uncategorized.length === 0) {
+                 document.getElementById('uncategorized').appendChild(ui.uncategorizedPlaceholder);
             }
         }
         
@@ -249,29 +286,57 @@
             return div;
         }
 
+        function initializeSortable() {
+            ui.quadrants.forEach(quadrant => {
+                new Sortable(quadrant, {
+                    group: 'tasks', animation: 150, ghostClass: 'sortable-ghost', chosenClass: 'sortable-chosen',
+                    filter: '.completed', preventOnFilter: true, onEnd: handleSortEnd
+                });
+            });
+        }
+        
+        // --- 4. Funções de Ações do Utilizador (CRUD de Tarefas) ---
+
         async function addTask(text) {
-            if (!tasksCollectionRef) return;
+            if (!currentUserId) return;
             const taskData = { 
-                text, 
-                quadrant: 'uncategorized', 
-                createdAt: serverTimestamp(),
-                order: Date.now(),
-                completed: false
+                text, quadrant: 'uncategorized', createdAt: serverTimestamp(),
+                order: Date.now(), completed: false
             };
+            const tasksCollectionRef = collection(db, 'users', currentUserId, 'tasks');
             await addDoc(tasksCollectionRef, taskData);
         }
 
         async function toggleTaskCompletion(taskId, isCompleted) {
-            if (!userId) return;
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            if (!currentUserId) return;
+            const taskRef = doc(db, 'users', currentUserId, 'tasks', taskId);
             await updateDoc(taskRef, { completed: isCompleted });
         }
 
         async function deleteTask(taskId) {
-            if (!userId) return;
-            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+            if (!currentUserId) return;
+            const taskRef = doc(db, 'users', currentUserId, 'tasks', taskId);
             await deleteDoc(taskRef);
         }
+        
+        async function handleSortEnd(evt) {
+            if (!currentUserId) return;
+            const taskId = evt.item.dataset.id;
+            const newQuadrantId = evt.to.id;
+            const batch = writeBatch(db);
+            const movedTaskRef = doc(db, 'users', currentUserId, 'tasks', taskId);
+            batch.update(movedTaskRef, { quadrant: newQuadrantId });
+            
+            // Recalcula a ordem para todas as tarefas no novo quadrante
+            const tasksInNewQuadrant = Array.from(evt.to.children).filter(el => el.classList.contains('task'));
+            tasksInNewQuadrant.reverse().forEach((taskEl, index) => { // .reverse() para que a ordem descendente funcione
+                const taskRef = doc(db, 'users', currentUserId, 'tasks', taskEl.dataset.id);
+                batch.update(taskRef, { order: Date.now() - index }); // Subtrai o índice para manter a ordem
+            });
+            await batch.commit();
+        }
+        
+        // --- 5. Event Listeners Iniciais ---
         
         ui.taskForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -283,35 +348,10 @@
         });
         
         ui.googleSignInBtn.addEventListener('click', signInWithGoogle);
-
-        function initializeSortable() {
-            ui.quadrants.forEach(quadrant => {
-                new Sortable(quadrant, {
-                    group: 'tasks',
-                    animation: 150,
-                    ghostClass: 'sortable-ghost',
-                    chosenClass: 'sortable-chosen',
-                    filter: '.completed',
-                    preventOnFilter: true,
-                    onEnd: handleSortEnd
-                });
-            });
-        }
-
-        async function handleSortEnd(evt) {
-            const taskId = evt.item.dataset.id;
-            const newQuadrantId = evt.to.id;
-            const batch = writeBatch(db);
-            const movedTaskRef = doc(db, 'users', userId, 'tasks', taskId);
-            batch.update(movedTaskRef, { quadrant: newQuadrantId });
-            Array.from(evt.to.children).filter(el => el.classList.contains('task')).forEach((taskEl, index) => {
-                const taskRef = doc(db, 'users', userId, 'tasks', taskEl.dataset.id);
-                batch.update(taskRef, { order: index });
-            });
-            await batch.commit();
-        }
         
-        window.onload = initializeFirebase;
+        // --- Ponto de Entrada da Aplicação ---
+        window.onload = initializeAppAndAuth;
+
     </script>
 </body>
 </html>
