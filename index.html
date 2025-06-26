@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matriz de Eisenhower com IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .quadrant {
+            min-height: 200px;
+            transition: background-color 0.2s ease-in-out;
+            border-radius: 0.5rem;
+        }
+        /* START: MODIFICAÇÃO PARA ROLAGEM */
+        #do, #schedule, #delegate, #delete {
+            max-height: 45vh; /* Limita a altura a 45% da altura da tela */
+            overflow-y: auto; /* Adiciona rolagem vertical quando necessário */
+            /* Adiciona um pequeno preenchimento para evitar que a barra de rolagem sobreponha o conteúdo */
+            padding-right: 0.5rem; 
+        }
+        /* END: MODIFICAÇÃO PARA ROLAGEM */
+        .task {
+            cursor: grab;
+            transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem; /* 12px */
+        }
+        .task:active {
+            cursor: grabbing;
+        }
+        .task.sortable-ghost {
+            opacity: 0.4;
+            background: #c0c0c0;
+        }
+        .task.sortable-chosen {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .task-text {
+            flex-grow: 1;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+        }
+        .task.completed .task-text {
+            text-decoration: line-through;
+            color: #6b7280; /* text-gray-500 */
+        }
+        .task.completed {
+            opacity: 0.7;
+        }
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            margin-left: auto;
+        }
+        .task:hover .delete-btn {
+            opacity: 1;
+        }
+        #ai-loader {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: white;
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #fff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .task-checkbox {
+            width: 1.25rem; /* 20px */
+            height: 1.25rem; /* 20px */
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
+
+    <div id="ai-loader">
+        <div class="spinner"></div>
+        <p class="text-lg font-semibold">A IA está categorizando suas tarefas...</p>
+        <p class="text-sm">Por favor, aguarde.</p>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">Matriz de Eisenhower</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Organize suas tarefas por urgência, importância e prioridade.</p>
+            <div id="auth-status" class="text-xs text-gray-500 mt-2">Conectando...</div>
+        </header>
+
+        <!-- Task Input -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <form id="add-task-form" class="flex flex-col sm:flex-row gap-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+                <input type="text" id="new-task-input" placeholder="Adicionar uma nova tarefa..." class="flex-grow p-3 bg-gray-100 dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                <button type="submit" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800">Adicionar Tarefa</button>
+            </form>
+        </div>
+
+        <!-- Uncategorized Tasks -->
+        <div class="max-w-4xl mx-auto mb-10">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-700 dark:text-gray-300">A Categorizar</h2>
+                <button id="ai-categorize-btn" class="hidden bg-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all">
+                    Sugerir Categorias com IA ✨
+                </button>
+            </div>
+            <div id="uncategorized" class="quadrant bg-white dark:bg-gray-800 p-4 shadow-md min-h-[100px] flex flex-col gap-3">
+                 <p id="uncategorized-placeholder" class="text-gray-400 dark:text-gray-500 text-center w-full mt-10">Adicione tarefas acima para começar.</p>
+            </div>
+        </div>
+
+        <!-- Eisenhower Matrix Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
+            <div class="bg-red-100 dark:bg-red-900/40 rounded-lg shadow-lg p-5 flex flex-col">
+                <h3 class="text-xl font-bold text-red-800 dark:text-red-200 mb-1">Urgente & Importante</h3>
+                <p class="text-sm text-red-600 dark:text-red-300 mb-4 font-semibold">FAZER</p>
+                <div id="do" class="quadrant space-y-3 flex-grow"></div>
+            </div>
+
+            <div class="bg-green-100 dark:bg-green-900/40 rounded-lg shadow-lg p-5 flex flex-col">
+                <h3 class="text-xl font-bold text-green-800 dark:text-green-200 mb-1">Não Urgente & Importante</h3>
+                <p class="text-sm text-green-600 dark:text-green-300 mb-4 font-semibold">AGENDAR</p>
+                <div id="schedule" class="quadrant space-y-3 flex-grow"></div>
+            </div>
+
+            <div class="bg-yellow-100 dark:bg-yellow-900/40 rounded-lg shadow-lg p-5 flex flex-col">
+                <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-200 mb-1">Urgente & Não Importante</h3>
+                <p class="text-sm text-yellow-600 dark:text-yellow-300 mb-4 font-semibold">DELEGAR</p>
+                <div id="delegate" class="quadrant space-y-3 flex-grow"></div>
+            </div>
+
+            <div class="bg-gray-200 dark:bg-gray-700/50 rounded-lg shadow-lg p-5 flex flex-col">
+                <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-1">Não Urgente & Não Importante</h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 font-semibold">ADIAR</p>
+                <div id="delete" class="quadrant space-y-3 flex-grow"></div>
+            </div>
+        </div>
+         <footer class="text-center mt-12 text-sm text-gray-500 dark:text-gray-400">
+            <p>Feito com ❤️ e Firebase. Arraste as tarefas para categorizá-las e reordená-las.</p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, setLogLevel, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db, auth, userId = null, tasksCollectionRef = null, unsubscribe = null;
+        
+        const ui = {
+            taskForm: document.getElementById('add-task-form'),
+            taskInput: document.getElementById('new-task-input'),
+            quadrants: document.querySelectorAll('.quadrant'),
+            authStatus: document.getElementById('auth-status'),
+            uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder'),
+            aiCategorizeBtn: document.getElementById('ai-categorize-btn'),
+            aiLoader: document.getElementById('ai-loader')
+        };
+
+        async function initializeFirebase() {
+            if (Object.keys(firebaseConfig).length === 0) {
+                 ui.authStatus.textContent = 'Erro: Configuração do Firebase ausente.';
+                 return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('debug');
+                onAuthStateChanged(auth, handleAuthState);
+            } catch (error) {
+                console.error("Falha na inicialização do Firebase:", error);
+                ui.authStatus.textContent = 'Falha na inicialização do Firebase.';
+            }
+        }
+        
+        async function handleAuthState(user) {
+            if (user) {
+                userId = user.uid;
+                ui.authStatus.textContent = `Conectado como: ${userId.substring(0, 8)}...`;
+                tasksCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+                
+                // FIX: Remove complex query and listen to the entire collection.
+                // Sorting will be handled client-side in renderTasks.
+                if (unsubscribe) unsubscribe();
+                unsubscribe = onSnapshot(tasksCollectionRef, renderTasks);
+                
+                initializeSortable();
+            } else {
+                ui.authStatus.textContent = 'Não autenticado. Tentando login...';
+                await authenticateUser();
+            }
+        }
+        
+        async function authenticateUser() {
+             try {
+                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                else await signInAnonymously(auth);
+             } catch (error) {
+                console.error("Falha na autenticação:", error);
+                ui.authStatus.textContent = 'Falha na autenticação.';
+             }
+        }
+        
+        function renderTasks(snapshot) {
+            const tasksByQuadrant = {
+                do: [], schedule: [], delegate: [], delete: [], uncategorized: []
+            };
+
+            // Group tasks by their quadrant
+            snapshot.docs.forEach(doc => {
+                const task = { id: doc.id, ...doc.data() };
+                if(tasksByQuadrant[task.quadrant]) {
+                    tasksByQuadrant[task.quadrant].push(task);
+                }
+            });
+
+            // FIX: Sort tasks within each quadrant client-side
+            for (const quadrantId in tasksByQuadrant) {
+                tasksByQuadrant[quadrantId].sort((a, b) => {
+                    // Completed tasks go to the bottom
+                    if (a.completed !== b.completed) {
+                        return a.completed ? 1 : -1;
+                    }
+                    // Otherwise, sort by the 'order' field
+                    return (a.order || 0) - (b.order || 0);
+                });
+            }
+
+            // Clear UI before re-rendering
+            ui.quadrants.forEach(q => q.innerHTML = '');
+
+            // Render the sorted tasks
+            Object.keys(tasksByQuadrant).forEach(quadrantId => {
+                const quadrantEl = document.getElementById(quadrantId);
+                if (quadrantEl) {
+                    tasksByQuadrant[quadrantId].forEach(task => {
+                        quadrantEl.appendChild(createTaskElement(task.id, task.text, task.completed));
+                    });
+                }
+            });
+
+            const uncategorizedTasks = tasksByQuadrant.uncategorized || [];
+            const uncategorizedCount = uncategorizedTasks.filter(t => !t.completed).length;
+
+            if (uncategorizedTasks.length === 0 && document.getElementById('uncategorized')) {
+                document.getElementById('uncategorized').appendChild(ui.uncategorizedPlaceholder);
+            }
+            ui.aiCategorizeBtn.classList.toggle('hidden', uncategorizedCount === 0);
+        }
+        
+        function createTaskElement(id, text, isCompleted) {
+            const div = document.createElement('div');
+            div.className = 'task bg-white dark:bg-gray-600 p-3 rounded-md shadow';
+            div.dataset.id = id;
+            div.classList.toggle('completed', isCompleted);
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = isCompleted;
+            checkbox.className = 'task-checkbox form-checkbox h-5 w-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600';
+            checkbox.onchange = () => toggleTaskCompletion(id, checkbox.checked);
+            div.appendChild(checkbox);
+
+            const span = document.createElement('span');
+            span.className = 'task-text';
+            span.textContent = text;
+            div.appendChild(span);
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.className = 'delete-btn text-red-500 font-bold text-xl leading-none px-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800';
+            deleteBtn.onclick = () => deleteTask(id);
+            div.appendChild(deleteBtn);
+
+            return div;
+        }
+
+        async function addTask(text) {
+            if (!tasksCollectionRef) return;
+            try {
+                await addDoc(tasksCollectionRef, { 
+                    text, 
+                    quadrant: 'uncategorized', 
+                    createdAt: serverTimestamp(),
+                    order: Date.now(),
+                    completed: false
+                });
+            } catch (error) {
+                console.error("Erro ao adicionar tarefa: ", error);
+            }
+        }
+
+        async function toggleTaskCompletion(taskId, isCompleted) {
+            if (!userId) return;
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            try {
+                // The onSnapshot listener will handle the re-rendering and re-ordering
+                await updateDoc(taskRef, { completed: isCompleted });
+            } catch (error) {
+                console.error("Error updating task completion:", error);
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!userId) return;
+            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            try {
+                await deleteDoc(taskRef);
+            } catch (error) {
+                console.error("Erro ao deletar tarefa: ", error);
+            }
+        }
+        
+        ui.taskForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const taskText = ui.taskInput.value.trim();
+            if (taskText) {
+                addTask(taskText);
+                ui.taskInput.value = '';
+            }
+        });
+
+        function initializeSortable() {
+            ui.quadrants.forEach(quadrant => {
+                new Sortable(quadrant, {
+                    group: 'tasks',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    filter: '.completed', // Do not allow dragging of completed items
+                    preventOnFilter: true,
+                    onEnd: handleSortEnd
+                });
+            });
+        }
+
+        async function handleSortEnd(evt) {
+            const taskId = evt.item.dataset.id;
+            const newQuadrantId = evt.to.id;
+            
+            // Re-calculate order for all tasks in the new list, keeping completed at the bottom
+            const tasksInNewQuadrant = Array.from(evt.to.children).filter(el => el.classList.contains('task'));
+            const incompleteTasks = tasksInNewQuadrant.filter(el => !el.classList.contains('completed'));
+            const completedTasks = tasksInNewQuadrant.filter(el => el.classList.contains('completed'));
+            
+            const batch = writeBatch(db);
+
+            // Update quadrant for the moved task first
+            const movedTaskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            batch.update(movedTaskRef, { quadrant: newQuadrantId });
+            
+            // Re-order incomplete tasks
+            incompleteTasks.forEach((taskEl, index) => {
+                const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskEl.dataset.id);
+                batch.update(taskRef, { order: index });
+            });
+
+             // Re-order completed tasks, ensuring their order number is higher
+            completedTasks.forEach((taskEl, index) => {
+                const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskEl.dataset.id);
+                batch.update(taskRef, { order: incompleteTasks.length + index });
+            });
+            
+            try {
+                await batch.commit();
+            } catch (error) {
+                console.error("Error updating task order:", error);
+            }
+        }
+        
+        async function handleAiCategorize() {
+            ui.aiLoader.style.display = 'flex';
+            const uncategorizedTasks = Array.from(document.getElementById('uncategorized').querySelectorAll('.task:not(.completed)'));
+            
+            if (uncategorizedTasks.length === 0) {
+                ui.aiLoader.style.display = 'none';
+                return;
+            }
+
+            const tasksToCategorize = uncategorizedTasks.map(task => ({
+                taskId: task.dataset.id,
+                taskText: task.querySelector('.task-text').textContent
+            }));
+
+            const prompt = `You are an expert productivity assistant specializing in the Eisenhower Matrix.
+The Eisenhower Matrix categorizes tasks into four quadrants:
+1. 'do': Urgent and Important. Tasks with clear deadlines and high impact. Crises, pressing problems. (e.g., 'Finish project report due tomorrow', 'Fix critical server bug')
+2. 'schedule': Not Urgent but Important. Tasks related to long-term goals, planning, personal growth. (e.g., 'Plan next quarter's strategy', 'Start learning a new language', 'Exercise')
+3. 'delegate': Urgent but Not Important. Tasks that need to be done now but don't require my specific skills. (e.g., 'Book a flight for a colleague', 'Answer routine client emails', 'Schedule a team meeting')
+4. 'delete': Not Urgent and Not Important. Time-wasting activities, distractions. (e.g., 'Mindlessly browse social media', 'Organize old files with no purpose')
+
+Given the following list of tasks, categorize each one into one of the four quadrants ('do', 'schedule', 'delegate', 'delete').
+Tasks: ${JSON.stringify(tasksToCategorize)}`;
+
+            try {
+                const apiKey = ""; 
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "ARRAY",
+                            items: {
+                                type: "OBJECT",
+                                properties: {
+                                    taskId: { type: "STRING" },
+                                    quadrant: { type: "STRING", enum: ["do", "schedule", "delegate", "delete"] }
+                                },
+                                required: ["taskId", "quadrant"]
+                            }
+                        }
+                    }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                    const categorizedTasks = JSON.parse(result.candidates[0].content.parts[0].text);
+                    
+                    const batch = writeBatch(db);
+                    categorizedTasks.forEach(task => {
+                        const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.taskId);
+                        batch.update(taskRef, { quadrant: task.quadrant, order: Date.now() + Math.random() });
+                    });
+                    await batch.commit();
+
+                } else {
+                    throw new Error("Invalid response structure from Gemini API.");
+                }
+
+            } catch (error) {
+                console.error("Error with Gemini AI categorization:", error);
+                alert("Ocorreu um erro ao tentar categorizar as tarefas com a IA. Por favor, tente novamente.");
+            } finally {
+                ui.aiLoader.style.display = 'none';
+            }
+        }
+
+        ui.aiCategorizeBtn.addEventListener('click', handleAiCategorize);
+
+        window.onload = initializeFirebase;
+    </script>
+</body>
+</html>
