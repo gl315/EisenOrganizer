@@ -167,12 +167,21 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, setLogLevel, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // START: Configuração do Firebase
+        // Estas são as suas chaves de configuração do seu projeto no Firebase.
+        const firebaseConfig = {
+            apiKey: "AIzaSyB-swt7hqqnJOxTMwDHqRTKn-IYxQg_AzE",
+            authDomain: "eisenorgan.firebaseapp.com",
+            projectId: "eisenorgan",
+            storageBucket: "eisenorgan.firebasestorage.app",
+            messagingSenderId: "65951573676",
+            appId: "1:65951573676:web:deae0484f59b51d138a109",
+            measurementId: "G-3EYGEDR11B"
+        };
+        // END: Configuração do Firebase
 
         let db, auth, userId = null, tasksCollectionRef = null, unsubscribe = null;
         
@@ -187,8 +196,10 @@
         };
 
         async function initializeFirebase() {
-            if (Object.keys(firebaseConfig).length === 0) {
+            // Verifica se o objeto de configuração não está vazio
+            if (!firebaseConfig || !firebaseConfig.apiKey) {
                  ui.authStatus.textContent = 'Erro: Configuração do Firebase ausente.';
+                 console.error("Configuração do Firebase está faltando!");
                  return;
             }
             try {
@@ -206,13 +217,13 @@
         async function handleAuthState(user) {
             if (user) {
                 userId = user.uid;
-                ui.authStatus.textContent = `Conectado como: ${userId.substring(0, 8)}...`;
-                tasksCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'tasks');
+                ui.authStatus.textContent = `Conectado anonimamente. ID: ${userId.substring(0, 8)}...`;
+                // Caminho da coleção no Firestore foi simplificado
+                tasksCollectionRef = collection(db, 'users', userId, 'tasks');
                 
-                // FIX: Remove complex query and listen to the entire collection.
-                // Sorting will be handled client-side in renderTasks.
                 if (unsubscribe) unsubscribe();
-                unsubscribe = onSnapshot(tasksCollectionRef, renderTasks);
+                const q = query(tasksCollectionRef, orderBy("order"));
+                unsubscribe = onSnapshot(q, renderTasks);
                 
                 initializeSortable();
             } else {
@@ -221,12 +232,12 @@
             }
         }
         
+        // Autenticação foi simplificada para usar apenas o login anônimo
         async function authenticateUser() {
              try {
-                if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
-                else await signInAnonymously(auth);
+                await signInAnonymously(auth);
              } catch (error) {
-                console.error("Falha na autenticação:", error);
+                console.error("Falha na autenticação anônima:", error);
                 ui.authStatus.textContent = 'Falha na autenticação.';
              }
         }
@@ -236,7 +247,6 @@
                 do: [], schedule: [], delegate: [], delete: [], uncategorized: []
             };
 
-            // Group tasks by their quadrant
             snapshot.docs.forEach(doc => {
                 const task = { id: doc.id, ...doc.data() };
                 if(tasksByQuadrant[task.quadrant]) {
@@ -244,22 +254,17 @@
                 }
             });
 
-            // FIX: Sort tasks within each quadrant client-side
             for (const quadrantId in tasksByQuadrant) {
                 tasksByQuadrant[quadrantId].sort((a, b) => {
-                    // Completed tasks go to the bottom
                     if (a.completed !== b.completed) {
                         return a.completed ? 1 : -1;
                     }
-                    // Otherwise, sort by the 'order' field
                     return (a.order || 0) - (b.order || 0);
                 });
             }
 
-            // Clear UI before re-rendering
             ui.quadrants.forEach(q => q.innerHTML = '');
 
-            // Render the sorted tasks
             Object.keys(tasksByQuadrant).forEach(quadrantId => {
                 const quadrantEl = document.getElementById(quadrantId);
                 if (quadrantEl) {
@@ -322,9 +327,8 @@
 
         async function toggleTaskCompletion(taskId, isCompleted) {
             if (!userId) return;
-            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
             try {
-                // The onSnapshot listener will handle the re-rendering and re-ordering
                 await updateDoc(taskRef, { completed: isCompleted });
             } catch (error) {
                 console.error("Error updating task completion:", error);
@@ -333,7 +337,7 @@
 
         async function deleteTask(taskId) {
             if (!userId) return;
-            const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            const taskRef = doc(db, 'users', userId, 'tasks', taskId);
             try {
                 await deleteDoc(taskRef);
             } catch (error) {
@@ -357,7 +361,7 @@
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     chosenClass: 'sortable-chosen',
-                    filter: '.completed', // Do not allow dragging of completed items
+                    filter: '.completed',
                     preventOnFilter: true,
                     onEnd: handleSortEnd
                 });
@@ -368,26 +372,22 @@
             const taskId = evt.item.dataset.id;
             const newQuadrantId = evt.to.id;
             
-            // Re-calculate order for all tasks in the new list, keeping completed at the bottom
             const tasksInNewQuadrant = Array.from(evt.to.children).filter(el => el.classList.contains('task'));
             const incompleteTasks = tasksInNewQuadrant.filter(el => !el.classList.contains('completed'));
             const completedTasks = tasksInNewQuadrant.filter(el => el.classList.contains('completed'));
             
             const batch = writeBatch(db);
 
-            // Update quadrant for the moved task first
-            const movedTaskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskId);
+            const movedTaskRef = doc(db, 'users', userId, 'tasks', taskId);
             batch.update(movedTaskRef, { quadrant: newQuadrantId });
             
-            // Re-order incomplete tasks
             incompleteTasks.forEach((taskEl, index) => {
-                const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskEl.dataset.id);
+                const taskRef = doc(db, 'users', userId, 'tasks', taskEl.dataset.id);
                 batch.update(taskRef, { order: index });
             });
 
-             // Re-order completed tasks, ensuring their order number is higher
             completedTasks.forEach((taskEl, index) => {
-                const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', taskEl.dataset.id);
+                const taskRef = doc(db, 'users', userId, 'tasks', taskEl.dataset.id);
                 batch.update(taskRef, { order: incompleteTasks.length + index });
             });
             
@@ -461,7 +461,7 @@ Tasks: ${JSON.stringify(tasksToCategorize)}`;
                     
                     const batch = writeBatch(db);
                     categorizedTasks.forEach(task => {
-                        const taskRef = doc(db, 'artifacts', appId, 'users', userId, 'tasks', task.taskId);
+                        const taskRef = doc(db, 'users', userId, 'tasks', task.taskId);
                         batch.update(taskRef, { quadrant: task.quadrant, order: Date.now() + Math.random() });
                     });
                     await batch.commit();
