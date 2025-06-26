@@ -108,8 +108,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, writeBatch, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB-swt7hqqnJOxTMwDHqRTKn-IYxQg_AzE",
@@ -135,11 +135,14 @@
             uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder')
         };
 
-        function initializeFirebase() {
+        async function initializeFirebase() {
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                // Define a persistência para a sessão atual do navegador.
+                // Isto garante um comportamento consistente entre janelas normais e anónimas.
+                await setPersistence(auth, browserSessionPersistence);
                 onAuthStateChanged(auth, handleAuthState);
             } catch (error) {
                 console.error("Falha na inicialização do Firebase:", error);
@@ -148,7 +151,6 @@
         }
         
         function handleAuthState(user) {
-            console.log("handleAuthState chamado.", user ? `Utilizador: ${user.uid}`: "Nenhum utilizador.");
             if (user) {
                 userId = user.uid;
                 ui.loginPage.style.display = 'none';
@@ -163,23 +165,20 @@
                 tasksCollectionRef = collection(db, 'users', userId, 'tasks');
                 
                 if (unsubscribe) {
-                    console.log("A cancelar a subscrição do listener anterior.");
                     unsubscribe();
                 }
                 
-                // DIAGNÓSTICO: Removido o orderBy para simplificar a consulta
-                const q = query(tasksCollectionRef); 
-                console.log(`A anexar o listener onSnapshot a: users/${userId}/tasks`);
+                // Re-adicionada a ordenação. Se isto causar problemas, precisaremos de criar um índice no Firebase.
+                const q = query(tasksCollectionRef, orderBy("order")); 
 
                 unsubscribe = onSnapshot(q, renderTasks, (error) => {
                     console.error("ERRO no listener do Firestore:", error);
-                    alert("Erro de permissão ao ler os dados. Verifique as suas regras de segurança do Firestore.");
+                    alert("Erro de permissão ao ler os dados. Verifique as suas regras de segurança do Firestore ou se precisa de criar um índice.");
                 });
                 
                 initializeSortable();
             } else {
                 if(unsubscribe) {
-                    console.log("Utilizador saiu, a cancelar a subscrição do listener.");
                     unsubscribe();
                 }
                 userId = null;
@@ -201,14 +200,10 @@
         }
 
         async function signOutUser() {
-            console.log("A terminar a sessão...");
             await signOut(auth);
         }
         
         function renderTasks(snapshot) {
-            // DIAGNÓSTICO: Log do número de tarefas recebidas
-            console.log(`renderTasks chamado. Recebidos ${snapshot.size} documentos do Firestore.`);
-
             const tasksByQuadrant = { do: [], schedule: [], delegate: [], delete: [], uncategorized: [] };
             snapshot.docs.forEach(doc => {
                 const task = { id: doc.id, ...doc.data() };
@@ -217,11 +212,7 @@
                 }
             });
 
-            // Sem orderBy, a ordenação manual é importante
-            for (const quadrantId in tasksByQuadrant) {
-                tasksByQuadrant[quadrantId].sort((a, b) => (a.order || 0) - (b.order || 0));
-            }
-
+            // A ordenação já é feita pela consulta do Firestore (orderBy)
             ui.quadrants.forEach(q => q.innerHTML = '');
             Object.keys(tasksByQuadrant).forEach(quadrantId => {
                 const quadrantEl = document.getElementById(quadrantId);
@@ -267,7 +258,6 @@
                 order: Date.now(),
                 completed: false
             };
-            console.log("A adicionar tarefa:", taskData, `para o caminho: ${tasksCollectionRef.path}`);
             await addDoc(tasksCollectionRef, taskData);
         }
 
