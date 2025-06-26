@@ -43,15 +43,11 @@
         .task:hover .delete-btn { opacity: 1; }
         .task-checkbox { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
         
-        /* Estilos para mostrar/ocultar páginas */
-        #login-page, #app-page {
-            display: none; /* Oculto por padrão, JS irá controlar a visibilidade */
-        }
+        #login-page, #app-page { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
     
-    <!-- PÁGINA DE LOGIN -->
     <div id="login-page" class="flex items-center justify-center min-h-screen">
         <div class="text-center bg-white dark:bg-gray-800 p-8 sm:p-12 rounded-xl shadow-2xl max-w-md w-full">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">Eisen-organizer</h1>
@@ -60,11 +56,10 @@
                 <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                 Entrar com Google
             </button>
-            <div id="login-status" class="text-xs text-gray-500 mt-6"></div>
+            <div id="login-status" class="text-xs text-gray-500 mt-6 h-4"></div>
         </div>
     </div>
     
-    <!-- PÁGINA PRINCIPAL DA APLICAÇÃO -->
     <div id="app-page" class="container mx-auto p-4 md:p-8">
         <header class="text-center mb-8">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">Matriz de Eisenhower</h1>
@@ -73,7 +68,6 @@
         </header>
 
         <div id="task-container">
-            <!-- Task Input -->
             <div class="max-w-2xl mx-auto mb-8">
                 <form id="add-task-form" class="flex flex-col sm:flex-row gap-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
                     <input type="text" id="new-task-input" placeholder="Adicionar uma nova tarefa..." class="flex-grow p-3 bg-gray-100 dark:bg-gray-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
@@ -81,39 +75,28 @@
                 </form>
             </div>
 
-            <!-- Uncategorized Tasks -->
             <div class="max-w-4xl mx-auto mb-10">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold text-gray-700 dark:text-gray-300">A Categorizar</h2>
-                </div>
+                <div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold text-gray-700 dark:text-gray-300">A Categorizar</h2></div>
                 <div id="uncategorized" class="quadrant bg-white dark:bg-gray-800 p-4 shadow-md min-h-[100px] flex flex-col gap-3">
                      <p id="uncategorized-placeholder" class="text-gray-400 dark:text-gray-500 text-center w-full mt-10">Adicione tarefas acima para começar.</p>
                 </div>
             </div>
 
-            <!-- Eisenhower Matrix Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl mx-auto">
                 <div class="bg-red-100 dark:bg-red-900/40 rounded-lg shadow-lg p-5 flex flex-col">
-                    <h3 class="text-xl font-bold text-red-800 dark:text-red-200 mb-1">Urgente & Importante</h3>
-                    <p class="text-sm text-red-600 dark:text-red-300 mb-4 font-semibold">FAZER</p>
+                    <h3 class="text-xl font-bold text-red-800 dark:text-red-200 mb-1">Urgente & Importante</h3><p class="text-sm text-red-600 dark:text-red-300 mb-4 font-semibold">FAZER</p>
                     <div id="do" class="quadrant space-y-3 flex-grow"></div>
                 </div>
-
                 <div class="bg-green-100 dark:bg-green-900/40 rounded-lg shadow-lg p-5 flex flex-col">
-                    <h3 class="text-xl font-bold text-green-800 dark:text-green-200 mb-1">Não Urgente & Importante</h3>
-                    <p class="text-sm text-green-600 dark:text-green-300 mb-4 font-semibold">AGENDAR</p>
+                    <h3 class="text-xl font-bold text-green-800 dark:text-green-200 mb-1">Não Urgente & Importante</h3><p class="text-sm text-green-600 dark:text-green-300 mb-4 font-semibold">AGENDAR</p>
                     <div id="schedule" class="quadrant space-y-3 flex-grow"></div>
                 </div>
-
                 <div class="bg-yellow-100 dark:bg-yellow-900/40 rounded-lg shadow-lg p-5 flex flex-col">
-                    <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-200 mb-1">Urgente & Não Importante</h3>
-                    <p class="text-sm text-yellow-600 dark:text-yellow-300 mb-4 font-semibold">DELEGAR</p>
+                    <h3 class="text-xl font-bold text-yellow-800 dark:text-yellow-200 mb-1">Urgente & Não Importante</h3><p class="text-sm text-yellow-600 dark:text-yellow-300 mb-4 font-semibold">DELEGAR</p>
                     <div id="delegate" class="quadrant space-y-3 flex-grow"></div>
                 </div>
-
                 <div class="bg-gray-200 dark:bg-gray-700/50 rounded-lg shadow-lg p-5 flex flex-col">
-                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-1">Não Urgente & Não Importante</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4 font-semibold">ADIAR</p>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-gray-200 mb-1">Não Urgente & Não Importante</h3><p class="text-sm text-gray-600 dark:text-gray-400 mb-4 font-semibold">ADIAR</p>
                     <div id="delete" class="quadrant space-y-3 flex-grow"></div>
                 </div>
             </div>
@@ -126,7 +109,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, setLogLevel, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, serverTimestamp, writeBatch, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB-swt7hqqnJOxTMwDHqRTKn-IYxQg_AzE",
@@ -146,24 +129,17 @@
             googleSignInBtn: document.getElementById('google-signin-btn'),
             authStatus: document.getElementById('auth-status'),
             loginStatus: document.getElementById('login-status'),
-            
             taskForm: document.getElementById('add-task-form'),
             taskInput: document.getElementById('new-task-input'),
             quadrants: document.querySelectorAll('.quadrant'),
             uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder')
         };
 
-        async function initializeFirebase() {
-            if (!firebaseConfig || !firebaseConfig.apiKey) {
-                 ui.loginStatus.textContent = 'Erro: Configuração do Firebase ausente.';
-                 console.error("Configuração do Firebase está em falta!");
-                 return;
-            }
+        function initializeFirebase() {
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                setLogLevel('debug');
                 onAuthStateChanged(auth, handleAuthState);
             } catch (error) {
                 console.error("Falha na inicialização do Firebase:", error);
@@ -172,34 +148,40 @@
         }
         
         function handleAuthState(user) {
+            console.log("handleAuthState chamado.", user ? `Utilizador: ${user.uid}`: "Nenhum utilizador.");
             if (user) {
-                // Utilizador Autenticado
                 userId = user.uid;
                 ui.loginPage.style.display = 'none';
                 ui.appPage.style.display = 'block';
 
                 ui.authStatus.innerHTML = `
                     <span class="font-semibold text-gray-700 dark:text-gray-300">Bem-vindo, ${user.displayName || 'Utilizador'}!</span>
-                    <button id="sign-out-btn" class="bg-red-500 text-white font-bold py-1 px-3 rounded-md text-xs hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900">Sair</button>
+                    <button id="sign-out-btn" class="bg-red-500 text-white font-bold py-1 px-3 rounded-md text-xs hover:bg-red-600">Sair</button>
                 `;
                 document.getElementById('sign-out-btn').addEventListener('click', signOutUser);
 
                 tasksCollectionRef = collection(db, 'users', userId, 'tasks');
                 
-                if (unsubscribe) unsubscribe();
-                const q = query(tasksCollectionRef, orderBy("order"));
+                if (unsubscribe) {
+                    console.log("A cancelar a subscrição do listener anterior.");
+                    unsubscribe();
+                }
+                
+                // DIAGNÓSTICO: Removido o orderBy para simplificar a consulta
+                const q = query(tasksCollectionRef); 
+                console.log(`A anexar o listener onSnapshot a: users/${userId}/tasks`);
+
                 unsubscribe = onSnapshot(q, renderTasks, (error) => {
-                    console.error("Erro no listener do Firestore:", error);
-                    // Pode ser um erro de permissão. Re-verificar as regras de segurança.
-                    if (error.code === 'permission-denied') {
-                        alert("Erro de permissão. Verifique as suas regras de segurança do Firestore.");
-                    }
+                    console.error("ERRO no listener do Firestore:", error);
+                    alert("Erro de permissão ao ler os dados. Verifique as suas regras de segurança do Firestore.");
                 });
                 
                 initializeSortable();
             } else {
-                // Nenhum Utilizador Autenticado
-                if(unsubscribe) unsubscribe();
+                if(unsubscribe) {
+                    console.log("Utilizador saiu, a cancelar a subscrição do listener.");
+                    unsubscribe();
+                }
                 userId = null;
                 ui.loginPage.style.display = 'flex';
                 ui.appPage.style.display = 'none';
@@ -212,7 +194,6 @@
             try {
                 ui.loginStatus.textContent = 'A abrir o pop-up de login...';
                 await signInWithPopup(auth, provider);
-                // O onAuthStateChanged tratará do resto.
             } catch (error) {
                 console.error("Erro no login com Google: ", error);
                 ui.loginStatus.textContent = `Erro no login: ${error.message}`;
@@ -220,49 +201,36 @@
         }
 
         async function signOutUser() {
-            try {
-                await signOut(auth);
-                // O onAuthStateChanged tratará do resto.
-            } catch (error) {
-                console.error("Erro ao sair:", error);
-            }
+            console.log("A terminar a sessão...");
+            await signOut(auth);
         }
         
         function renderTasks(snapshot) {
-            const tasksByQuadrant = {
-                do: [], schedule: [], delegate: [], delete: [], uncategorized: []
-            };
+            // DIAGNÓSTICO: Log do número de tarefas recebidas
+            console.log(`renderTasks chamado. Recebidos ${snapshot.size} documentos do Firestore.`);
 
+            const tasksByQuadrant = { do: [], schedule: [], delegate: [], delete: [], uncategorized: [] };
             snapshot.docs.forEach(doc => {
                 const task = { id: doc.id, ...doc.data() };
-                if(tasksByQuadrant[task.quadrant]) {
+                if (tasksByQuadrant[task.quadrant]) {
                     tasksByQuadrant[task.quadrant].push(task);
                 }
             });
 
+            // Sem orderBy, a ordenação manual é importante
             for (const quadrantId in tasksByQuadrant) {
-                tasksByQuadrant[quadrantId].sort((a, b) => {
-                    if (a.completed !== b.completed) {
-                        return a.completed ? 1 : -1;
-                    }
-                    return (a.order || 0) - (b.order || 0);
-                });
+                tasksByQuadrant[quadrantId].sort((a, b) => (a.order || 0) - (b.order || 0));
             }
 
             ui.quadrants.forEach(q => q.innerHTML = '');
-
             Object.keys(tasksByQuadrant).forEach(quadrantId => {
                 const quadrantEl = document.getElementById(quadrantId);
                 if (quadrantEl) {
-                    tasksByQuadrant[quadrantId].forEach(task => {
-                        quadrantEl.appendChild(createTaskElement(task.id, task.text, task.completed));
-                    });
+                    tasksByQuadrant[quadrantId].forEach(task => quadrantEl.appendChild(createTaskElement(task.id, task.text, task.completed)));
                 }
             });
 
-            const uncategorizedTasks = tasksByQuadrant.uncategorized || [];
-
-            if (uncategorizedTasks.length === 0 && document.getElementById('uncategorized')) {
+            if (tasksByQuadrant.uncategorized.length === 0 && document.getElementById('uncategorized')) {
                 document.getElementById('uncategorized').appendChild(ui.uncategorizedPlaceholder);
             }
         }
@@ -272,61 +240,47 @@
             div.className = 'task bg-white dark:bg-gray-600 p-3 rounded-md shadow';
             div.dataset.id = id;
             div.classList.toggle('completed', isCompleted);
-
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = isCompleted;
-            checkbox.className = 'task-checkbox form-checkbox h-5 w-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600';
+            checkbox.className = 'task-checkbox form-checkbox h-5 w-5 text-blue-600 rounded';
             checkbox.onchange = () => toggleTaskCompletion(id, checkbox.checked);
             div.appendChild(checkbox);
-
             const span = document.createElement('span');
             span.className = 'task-text';
             span.textContent = text;
             div.appendChild(span);
-
             const deleteBtn = document.createElement('button');
             deleteBtn.innerHTML = '&times;';
-            deleteBtn.className = 'delete-btn text-red-500 font-bold text-xl leading-none px-2 rounded-full hover:bg-red-100 dark:hover:bg-red-800';
+            deleteBtn.className = 'delete-btn text-red-500 font-bold text-xl';
             deleteBtn.onclick = () => deleteTask(id);
             div.appendChild(deleteBtn);
-
             return div;
         }
 
         async function addTask(text) {
             if (!tasksCollectionRef) return;
-            try {
-                await addDoc(tasksCollectionRef, { 
-                    text, 
-                    quadrant: 'uncategorized', 
-                    createdAt: serverTimestamp(),
-                    order: Date.now(),
-                    completed: false
-                });
-            } catch (error) {
-                console.error("Erro ao adicionar tarefa: ", error);
-            }
+            const taskData = { 
+                text, 
+                quadrant: 'uncategorized', 
+                createdAt: serverTimestamp(),
+                order: Date.now(),
+                completed: false
+            };
+            console.log("A adicionar tarefa:", taskData, `para o caminho: ${tasksCollectionRef.path}`);
+            await addDoc(tasksCollectionRef, taskData);
         }
 
         async function toggleTaskCompletion(taskId, isCompleted) {
             if (!userId) return;
             const taskRef = doc(db, 'users', userId, 'tasks', taskId);
-            try {
-                await updateDoc(taskRef, { completed: isCompleted });
-            } catch (error) {
-                console.error("Error updating task completion:", error);
-            }
+            await updateDoc(taskRef, { completed: isCompleted });
         }
 
         async function deleteTask(taskId) {
             if (!userId) return;
             const taskRef = doc(db, 'users', userId, 'tasks', taskId);
-            try {
-                await deleteDoc(taskRef);
-            } catch (error) {
-                console.error("Erro ao deletar tarefa: ", error);
-            }
+            await deleteDoc(taskRef);
         }
         
         ui.taskForm.addEventListener('submit', (e) => {
@@ -357,31 +311,14 @@
         async function handleSortEnd(evt) {
             const taskId = evt.item.dataset.id;
             const newQuadrantId = evt.to.id;
-            
-            const tasksInNewQuadrant = Array.from(evt.to.children).filter(el => el.classList.contains('task'));
-            const incompleteTasks = tasksInNewQuadrant.filter(el => !el.classList.contains('completed'));
-            const completedTasks = tasksInNewQuadrant.filter(el => el.classList.contains('completed'));
-            
             const batch = writeBatch(db);
-
             const movedTaskRef = doc(db, 'users', userId, 'tasks', taskId);
             batch.update(movedTaskRef, { quadrant: newQuadrantId });
-            
-            incompleteTasks.forEach((taskEl, index) => {
+            Array.from(evt.to.children).filter(el => el.classList.contains('task')).forEach((taskEl, index) => {
                 const taskRef = doc(db, 'users', userId, 'tasks', taskEl.dataset.id);
                 batch.update(taskRef, { order: index });
             });
-
-            completedTasks.forEach((taskEl, index) => {
-                const taskRef = doc(db, 'users', userId, 'tasks', taskEl.dataset.id);
-                batch.update(taskRef, { order: incompleteTasks.length + index });
-            });
-            
-            try {
-                await batch.commit();
-            } catch (error) {
-                console.error("Error updating task order:", error);
-            }
+            await batch.commit();
         }
         
         window.onload = initializeFirebase;
