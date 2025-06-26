@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Matriz de Eisenhower com IA</title>
+    <title>Matriz de Eisenhower</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,23 +41,6 @@
         .task.completed { opacity: 0.7; }
         .delete-btn { opacity: 0; transition: opacity 0.2s ease; margin-left: auto; }
         .task:hover .delete-btn { opacity: 1; }
-        #ai-loader {
-            display: none;
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            z-index: 9999;
-            justify-content: center; align-items: center; flex-direction: column;
-            color: white; text-align: center;
-        }
-        .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #fff;
-            width: 40px; height: 40px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 1rem;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .task-checkbox { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
         
         /* Estilos para mostrar/ocultar páginas */
@@ -67,18 +50,12 @@
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-
-    <div id="ai-loader">
-        <div class="spinner"></div>
-        <p class="text-lg font-semibold">A IA está a categorizar as suas tarefas...</p>
-        <p class="text-sm">Por favor, aguarde.</p>
-    </div>
     
     <!-- PÁGINA DE LOGIN -->
     <div id="login-page" class="flex items-center justify-center min-h-screen">
         <div class="text-center bg-white dark:bg-gray-800 p-8 sm:p-12 rounded-xl shadow-2xl max-w-md w-full">
             <h1 class="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">Eisen-organizer</h1>
-            <p class="text-gray-600 dark:text-gray-400 mt-3 mb-8">A sua Matriz de Eisenhower pessoal, na nuvem.</p>
+            <p class="text-gray-600 dark:text-gray-400 mt-3 mb-8">Organize suas tarefas por urgência, importância e prioridade.</p>
             <button id="google-signin-btn" class="w-full bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3 px-6 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 flex items-center justify-center gap-3">
                 <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.021,35.596,44,30.138,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
                 Entrar com Google
@@ -108,9 +85,6 @@
             <div class="max-w-4xl mx-auto mb-10">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold text-gray-700 dark:text-gray-300">A Categorizar</h2>
-                    <button id="ai-categorize-btn" class="hidden bg-purple-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all">
-                        Sugerir Categorias com IA ✨
-                    </button>
                 </div>
                 <div id="uncategorized" class="quadrant bg-white dark:bg-gray-800 p-4 shadow-md min-h-[100px] flex flex-col gap-3">
                      <p id="uncategorized-placeholder" class="text-gray-400 dark:text-gray-500 text-center w-full mt-10">Adicione tarefas acima para começar.</p>
@@ -176,9 +150,7 @@
             taskForm: document.getElementById('add-task-form'),
             taskInput: document.getElementById('new-task-input'),
             quadrants: document.querySelectorAll('.quadrant'),
-            uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder'),
-            aiCategorizeBtn: document.getElementById('ai-categorize-btn'),
-            aiLoader: document.getElementById('ai-loader')
+            uncategorizedPlaceholder: document.getElementById('uncategorized-placeholder')
         };
 
         async function initializeFirebase() {
@@ -289,12 +261,10 @@
             });
 
             const uncategorizedTasks = tasksByQuadrant.uncategorized || [];
-            const uncategorizedCount = uncategorizedTasks.filter(t => !t.completed).length;
 
             if (uncategorizedTasks.length === 0 && document.getElementById('uncategorized')) {
                 document.getElementById('uncategorized').appendChild(ui.uncategorizedPlaceholder);
             }
-            ui.aiCategorizeBtn.classList.toggle('hidden', uncategorizedCount === 0);
         }
         
         function createTaskElement(id, text, isCompleted) {
@@ -414,88 +384,6 @@
             }
         }
         
-        async function handleAiCategorize() {
-            ui.aiLoader.style.display = 'flex';
-            const uncategorizedTasks = Array.from(document.getElementById('uncategorized').querySelectorAll('.task:not(.completed)'));
-            
-            if (uncategorizedTasks.length === 0) {
-                ui.aiLoader.style.display = 'none';
-                return;
-            }
-
-            const tasksToCategorize = uncategorizedTasks.map(task => ({
-                taskId: task.dataset.id,
-                taskText: task.querySelector('.task-text').textContent
-            }));
-
-            const prompt = `You are an expert productivity assistant specializing in the Eisenhower Matrix.
-The Eisenhower Matrix categorizes tasks into four quadrants:
-1. 'do': Urgent and Important. Tasks with clear deadlines and high impact. Crises, pressing problems. (e.g., 'Finish project report due tomorrow', 'Fix critical server bug')
-2. 'schedule': Not Urgent but Important. Tasks related to long-term goals, planning, personal growth. (e.g., 'Plan next quarter's strategy', 'Start learning a new language', 'Exercise')
-3. 'delegate': Urgent but Not Important. Tasks that need to be done now but don't require my specific skills. (e.g., 'Book a flight for a colleague', 'Answer routine client emails', 'Schedule a team meeting')
-4. 'delete': Not Urgent and Not Important. Time-wasting activities, distractions. (e.g., 'Mindlessly browse social media', 'Organize old files with no purpose')
-
-Given the following list of tasks, categorize each one into one of the four quadrants ('do', 'schedule', 'delegate', 'delete').
-Tasks: ${JSON.stringify(tasksToCategorize)}`;
-
-            try {
-                const apiKey = ""; 
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-                const payload = {
-                    contents: [{ role: "user", parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "ARRAY",
-                            items: {
-                                type: "OBJECT",
-                                properties: {
-                                    taskId: { type: "STRING" },
-                                    quadrant: { type: "STRING", enum: ["do", "schedule", "delegate", "delete"] }
-                                },
-                                required: ["taskId", "quadrant"]
-                            }
-                        }
-                    }
-                };
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`API call failed with status: ${response.status}`);
-                }
-
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
-                    const categorizedTasks = JSON.parse(result.candidates[0].content.parts[0].text);
-                    
-                    const batch = writeBatch(db);
-                    categorizedTasks.forEach(task => {
-                        const taskRef = doc(db, 'users', userId, 'tasks', task.taskId);
-                        batch.update(taskRef, { quadrant: task.quadrant, order: Date.now() + Math.random() });
-                    });
-                    await batch.commit();
-
-                } else {
-                    throw new Error("Invalid response structure from Gemini API.");
-                }
-
-            } catch (error) {
-                console.error("Error with Gemini AI categorization:", error);
-                alert("Ocorreu um erro ao tentar categorizar as tarefas com a IA. Por favor, tente novamente.");
-            } finally {
-                ui.aiLoader.style.display = 'none';
-            }
-        }
-
-        ui.aiCategorizeBtn.addEventListener('click', handleAiCategorize);
-
         window.onload = initializeFirebase;
     </script>
 </body>
